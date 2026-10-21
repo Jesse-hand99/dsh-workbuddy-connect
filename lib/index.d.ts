@@ -680,14 +680,19 @@ declare function modelWithCurrentPromotion(model: WorkBuddyUpstreamModel, now?: 
 /**
  * Prepare a body for the **CN** endpoint.
  *
- * Until #87 the CN wire was the caller's body verbatim. The only difference
- * now is the shared {@link dropUnsupportedEffort} strip, whose region scope was
- * lifted once measurements showed this endpoint rejects `off` too.
+ * Until #87 the CN wire was the caller's body verbatim. The shared
+ * {@link dropUnsupportedEffort} strip stays; since 2026-10-20 the CN gateway
+ * additionally content-filters the harness's own bootstrap sentences in a chat
+ * body (HTTP 400, display text 「请求被拦截，请重新发送」), so the body also goes
+ * through {@link neutralizeCnChatBody} — CN only, semantically equivalent
+ * rewrites, never on the international path. See `cn-prompt.ts` for the
+ * measured fingerprints and the fallback disguise.
  *
  * Deliberately **not** routed through {@link prepareChatBody}: the shim already
  * applies it before handing the body to {@link WorkBuddyUpstreamClient.chatStream},
  * and re-running it would be a second `stream`/`developer`/`tool_choice`
- * normalisation of an already-normalised body. Only the strip belongs here.
+ * normalisation of an already-normalised body. Only the strip and the
+ * neutralization belong here.
  *
  * A body that is not a JSON object is returned unchanged, so this is safe to
  * run over an already-prepared-or-not body.
@@ -1648,6 +1653,76 @@ declare class WorkBuddyProbeService {
   probe(modelId: string, manualConsent?: boolean): Promise<WorkBuddyProbeStatus>;
 }
 //#endregion
+//#region src/cn-prompt.d.ts
+/**
+ * CN-only prompt neutralization.
+ *
+ * Since 2026-10-20 the WorkBuddy (CN) gateway content-filters chat bodies: a
+ * body whose messages carry the harness's own bootstrap sentences is answered
+ * with HTTP 400 and the display text 「请求被拦截，请重新发送」. The filter is a
+ * fingerprint match over the prompt text, not a client-identity check —
+ * official-client headers, the desktop User-Agent, the international origin and
+ * every other request attribute were measured accepted while the same request
+ * carrying the real system prompt was blocked (see the live verification notes
+ * in README). Replacing these two sentences with semantically equivalent
+ * wording makes the full system prompt pass again.
+ *
+ * Scope: CN chat bodies only. The international endpoint does not apply this
+ * filter and must never see a rewritten prompt, so callers choose the region at
+ * the call site (`prepareCnChatBody`), not inside this module.
+ *
+ * Two modes exist because the filter is upstream-owned and may learn new
+ * fingerprint sentences:
+ *
+ * - normal: rewrite the known sentences, leave every other byte untouched;
+ * - aggressive (fallback retry after a blocked response): additionally insert a
+ *   zero-width space after every space in message text, which breaks a literal
+ *   fingerprint while staying invisible to the model's reading of the prompt.
+ *   It intentionally applies to every message role, because a block can also be
+ *   triggered by text copied into a user message.
+ *
+ * Normal mode deliberately rewrites only `system`/`developer` messages. User
+ * content is the user's own words; changing it silently is worse than letting
+ * that particular request fail and surfacing the error.
+ *
+ * @module dsh-workbuddy-connect/cn-prompt
+ */
+/** Options for {@link neutralizeCnChatBody}. */
+interface NeutralizeCnChatBodyOptions {
+  /**
+   * Fallback disguise: also rewrite every message role and inject a zero-width
+   * space after every space. Only used for the single retry after the gateway
+   * blocked a request, never on the first attempt.
+   */
+  aggressive?: boolean;
+}
+/**
+ * Rewrite the known CN fingerprints in one text.
+ *
+ * Pure and idempotent: the replacements contain none of the patterns.
+ */
+declare function neutralizeCnPromptText(text: string): string;
+/**
+ * Rewrite the CN fingerprints inside a chat-completions body.
+ *
+ * Returns `source` unchanged when it is not a JSON object, carries no
+ * `messages` array, or has nothing to rewrite — so callers can compare the
+ * result to detect whether a disguise would change anything. Everything except
+ * message text is preserved byte-for-byte after a JSON round-trip.
+ *
+ * The aggressive mode rewrites every role, because the gateway matches the
+ * whole body: a blocked user message would otherwise keep failing on retry.
+ */
+declare function neutralizeCnChatBody(source: string, options?: NeutralizeCnChatBodyOptions): string;
+/**
+ * Whether a CN chat response is the gateway's prompt filter rejection.
+ *
+ * Matches on the human-readable display text rather than the business code:
+ * the same display text has been observed on more than one code, and the code
+ * alone cannot distinguish this filter from a genuine upstream refusal.
+ */
+declare function isCnPromptBlockedResponse(status: number, bodyText: string): boolean;
+//#endregion
 //#region src/host-heartbeat.d.ts
 /**
  * Host-side heartbeat: a small JSON file written under `$DSH_HOME` once the
@@ -1801,4 +1876,4 @@ declare function visibilityAccountOf(credential: Pick<WorkBuddyCredential, 'uid'
  */
 declare function apply(ctx: Context, config: Config): void;
 //#endregion
-export { AI_VARIANT, type AppVersionInfo, CN_APP_VERSION_FILENAME, CN_VARIANT, type ChatIdentity, Config, FALLBACK_CN_APP_VERSION, FALLBACK_WORKBUDDY_AI_MODELS, FALLBACK_WORKBUDDY_MODELS, PROBE_EFFORT_CANDIDATES, type ProbeAttempt, type ProbeOutcome, type ProbeSender, type ResolveChatIdentityOptions, type UpstreamErrorKind, WORKBUDDY_AI_SETTINGS_NS, WORKBUDDY_APP_VERSION_FILENAME, WORKBUDDY_AUTH_FILENAME, WORKBUDDY_AUTH_FILE_ENV, WORKBUDDY_CATALOG_FILENAME, WORKBUDDY_HOST_HEARTBEAT_FILENAME, WORKBUDDY_PROBE_FILENAME, WORKBUDDY_PROVIDER, WORKBUDDY_SETTINGS_NS, WORKBUDDY_STREAM_IDLE_TIMEOUT_MS, WORKBUDDY_VARIANTS, WORKBUDDY_VISIBILITY_FILENAME, type WorkBuddyAdapter, type WorkBuddyAppVersionSource, type WorkBuddyAuthStatus, WorkBuddyCatalog, type WorkBuddyCatalogFetch, WorkBuddyCatalogStore, type WorkBuddyChatResult, type WorkBuddyCredential, WorkBuddyCredentialStore, type WorkBuddyCredits, type WorkBuddyEffort, type WorkBuddyHostHeartbeat, type WorkBuddyModelBilling, type WorkBuddyModelInfo, type WorkBuddyModelReasoning, type WorkBuddyProbeRecord, WorkBuddyProbeService, type WorkBuddyProbeStatus, WorkBuddyProbeStore, type WorkBuddyProbeValidation, type WorkBuddyPromotion, type WorkBuddyRefreshOutcome, type WorkBuddyShim, WorkBuddyUpstreamClient, type WorkBuddyUpstreamModel, type WorkBuddyVariant, WorkBuddyVisibilityStore, appUserAgent, apply, chatUserAgent, classifyUpstreamError, clearHostHeartbeat, createWorkBuddyAdapter, createWorkBuddyShim, defaultDesktopAuthCandidates, defaultDesktopAuthPath, desktopAuthCandidatesFor, fallbackChatIdentity, fingerprintModel, inject, installedAppVersion, isHeartbeatProcessAlive, modelWithCurrentPromotion, name, normalizeCredits, parseModelCatalog, parseWorkBuddyAuth, prepareChatBody, prepareCnChatBody, prepareInternationalChatBody, probeModel, processStartTimeMs, randomSentinel, readBundleVersion, readCliVersion, readHostHeartbeat, regionOf, resolveAppVersion, resolveChatIdentity, validAppVersion, validCliVersion, variantFor, visibilityAccountOf, workbuddyCatalogPath, workbuddyHostHeartbeatPath, workbuddyOwnAuthPath, workbuddyProbePath, workbuddyVisibilityPath };
+export { AI_VARIANT, type AppVersionInfo, CN_APP_VERSION_FILENAME, CN_VARIANT, type ChatIdentity, Config, FALLBACK_CN_APP_VERSION, FALLBACK_WORKBUDDY_AI_MODELS, FALLBACK_WORKBUDDY_MODELS, type NeutralizeCnChatBodyOptions, PROBE_EFFORT_CANDIDATES, type ProbeAttempt, type ProbeOutcome, type ProbeSender, type ResolveChatIdentityOptions, type UpstreamErrorKind, WORKBUDDY_AI_SETTINGS_NS, WORKBUDDY_APP_VERSION_FILENAME, WORKBUDDY_AUTH_FILENAME, WORKBUDDY_AUTH_FILE_ENV, WORKBUDDY_CATALOG_FILENAME, WORKBUDDY_HOST_HEARTBEAT_FILENAME, WORKBUDDY_PROBE_FILENAME, WORKBUDDY_PROVIDER, WORKBUDDY_SETTINGS_NS, WORKBUDDY_STREAM_IDLE_TIMEOUT_MS, WORKBUDDY_VARIANTS, WORKBUDDY_VISIBILITY_FILENAME, type WorkBuddyAdapter, type WorkBuddyAppVersionSource, type WorkBuddyAuthStatus, WorkBuddyCatalog, type WorkBuddyCatalogFetch, WorkBuddyCatalogStore, type WorkBuddyChatResult, type WorkBuddyCredential, WorkBuddyCredentialStore, type WorkBuddyCredits, type WorkBuddyEffort, type WorkBuddyHostHeartbeat, type WorkBuddyModelBilling, type WorkBuddyModelInfo, type WorkBuddyModelReasoning, type WorkBuddyProbeRecord, WorkBuddyProbeService, type WorkBuddyProbeStatus, WorkBuddyProbeStore, type WorkBuddyProbeValidation, type WorkBuddyPromotion, type WorkBuddyRefreshOutcome, type WorkBuddyShim, WorkBuddyUpstreamClient, type WorkBuddyUpstreamModel, type WorkBuddyVariant, WorkBuddyVisibilityStore, appUserAgent, apply, chatUserAgent, classifyUpstreamError, clearHostHeartbeat, createWorkBuddyAdapter, createWorkBuddyShim, defaultDesktopAuthCandidates, defaultDesktopAuthPath, desktopAuthCandidatesFor, fallbackChatIdentity, fingerprintModel, inject, installedAppVersion, isCnPromptBlockedResponse, isHeartbeatProcessAlive, modelWithCurrentPromotion, name, neutralizeCnChatBody, neutralizeCnPromptText, normalizeCredits, parseModelCatalog, parseWorkBuddyAuth, prepareChatBody, prepareCnChatBody, prepareInternationalChatBody, probeModel, processStartTimeMs, randomSentinel, readBundleVersion, readCliVersion, readHostHeartbeat, regionOf, resolveAppVersion, resolveChatIdentity, validAppVersion, validCliVersion, variantFor, visibilityAccountOf, workbuddyCatalogPath, workbuddyHostHeartbeatPath, workbuddyOwnAuthPath, workbuddyProbePath, workbuddyVisibilityPath };

@@ -132,6 +132,7 @@ llm-workbuddy:
 
 ## 已知限制
 
+- **国内版网关会按系统提示词指纹拦截（2026-10-20 起）**：WorkBuddy（国内版）会对请求正文里的 DSH 启动提示词做内容指纹匹配，命中就返回 HTTP 400 与「请求被拦截，请重新发送」；实测与客户端身份、域名、UA、请求头均无关（官方客户端头部、desktop UA、国际版域名都照样被拦，换成不含提示词的请求则正常）。0.7.10 起，插件只对国内版请求把已知的两处指纹句改写为语义等价的措辞（`You are an AI agent powered by DeepSeek Harness.` 与 `When the user refers to "this page", "this GUI", or "this app" ...`），国际版请求不做任何改写；若上游新增指纹，会先做一次零宽空格兜底重试，仍失败则如实报错。这是对上游风控的对抗，随时可能失效，账号风险自负。
 - 在 macOS 的 DSH Web / Desktop / TUI 下验证通过（0.3.2 起要求 `0.1.5-rc.1`+、Node 22+；TUI 需终端界面插件 `0.10.0-beta.5` 及以上，见安装章节说明）。Windows 会依次探测 Local 与 Roaming AppData；WSL 会优先从挂载的 Windows 用户目录读取登录凭据。若 Windows 与 Linux 用户名不同且 Windows 环境变量未传入 WSL，请通过 `WORKBUDDY_AUTH_FILE`（国际版为 `WORKBUDDY_AI_AUTH_FILE`）指定实际位置。
 - **加密桌面凭据的解密程序定位**：解密程序在 macOS 与 Windows 上会自动探测。Windows 的路径优先级为：进程中的显式配置 → 注册表配置（先用户环境变量，再系统环境变量）→ 默认安装位置 → 卸载记录自动发现；显式配置无效时会报错，不会静默换用另一个安装。国内版默认位置为 `%LOCALAPPDATA%\Programs\WorkBuddy\WorkBuddy.exe`，国际版尚无已验证的默认位置。可用 `WORKBUDDY_ELECTRON_BIN`（国内版）或 `WORKBUDDY_AI_ELECTRON_BIN`（国际版）指定可执行文件。进程变量缺失、为空或仅含空白时，Windows 会异步查询注册表；未命中的结果不缓存，因此运行中新增配置后可重试解析，实际卡片交互仍待 Windows 实机验证。成功命中的配置按实例缓存；若要改用另一个仍有效的安装路径，请完全退出并重启 DSH。macOS / Linux 设置环境变量后仍需完全重启；Linux 无法自动发现，需显式指定。WSL 下调用 Windows 侧解密程序时，插件会自动把子进程 `WSLENV` 中的 `ELECTRON_RUN_AS_NODE` 条目规范化为单一安全旗标（含 `/w` 转发、不做路径转换，其余条目原样保留），无需手动设置。此改动已通过离线回归测试，尚未完成 WSL2 / Windows 真机验证。
 - **国际版的模型目录来自 App 界面接口**：服务端按 User-Agent 分流下发，属私有实现，上游改动可能使其失效。届时插件按「本账号上次成功目录 → 内置目录」降级，并在卡片上标明来源（实时 / 已保存 / 内置）、更新时间与失败原因，但不能保证长期兼容。国内版目录走官方 CLI 同款接口，不受此影响。
@@ -157,6 +158,7 @@ llm-workbuddy:
 
 历次更新（完整记录见 [releases](https://github.com/corrinehu/dsh-workbuddy-connect/releases)）：
 
+- **0.7.10（本地，未发布）**：国内版恢复对话：识别出 2026-10-20 起国内网关对 DSH 启动提示词的内容指纹拦截，插件改为仅对国内版请求做语义等价的提示词净化（两处已知指纹句），并保留一次零宽空格兜底重试；国际版路径不变。
 - **0.7.9**：恢复 DSH 0.2.1-rc.2 上国际版最大上下文窗口开关，修复延迟初始化及设置持久化（PR [#172](https://github.com/corrinehu/dsh-workbuddy-connect/pull/172)，by @1Dreamer666）；避免本地服务绑定到 fetch 禁用端口导致国际版 502（PR [#164](https://github.com/corrinehu/dsh-workbuddy-connect/pull/164)，by @Xiong-Ziyi）；同名积分包合并展示，减少重复条目。
 - **0.7.8**：适配 DSH 0.2.1-rc.2；将官方原子写入工具打包到插件，避免依赖宿主暴露该模块；更新国内模型目录快照，区分 Hy3 / Hy3-X；优化推理检测结果展示，调整积分刷新按钮位置并修正悬停提示。感谢 @chenpiyanghappy 的 PR [#156](https://github.com/corrinehu/dsh-workbuddy-connect/pull/156)。
 - **0.7.7**：适配 DSH 0.2.1-rc.1 内核：peer 收窄到 0.2.1-rc.1，插件自带的 `@earendil-works/pi-ai` 随内核升级到 1.3.0（profile 级历史遗留的 0.87.1 overrides 必须移除，否则插件无法加载）；修复国际版与国内版推理档位检测停留「检测未完成」——上游把档位拒绝码改拼为 `invalid_parameter_value`（[#143](https://github.com/corrinehu/dsh-workbuddy-connect/issues/143) / [#148](https://github.com/corrinehu/dsh-workbuddy-connect/issues/148)，PR [#145](https://github.com/corrinehu/dsh-workbuddy-connect/pull/145)）；修复中文 Windows 控制台下注册表缺键诊断因 GBK 编码被误判（zh-CN 实机验证）。

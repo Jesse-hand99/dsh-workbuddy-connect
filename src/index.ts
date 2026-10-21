@@ -138,6 +138,12 @@ export {
   type WorkBuddyUpstreamModel,
 } from './upstream.ts'
 export {
+  isCnPromptBlockedResponse,
+  neutralizeCnChatBody,
+  neutralizeCnPromptText,
+  type NeutralizeCnChatBodyOptions,
+} from './cn-prompt.ts'
+export {
   WORKBUDDY_HOST_HEARTBEAT_FILENAME,
   clearHostHeartbeat,
   isHeartbeatProcessAlive,
