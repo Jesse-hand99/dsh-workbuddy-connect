@@ -23,7 +23,7 @@ Brings the models available in your signed-in WorkBuddy / WorkBuddy AI desktop a
 ```text
 Please install and verify the DSH (DeepSeek Harness) plugin dsh-workbuddy-connect for me (project: https://github.com/corrinehu/dsh-workbuddy-connect).
 Start by reading the project README and confirming which interface I actually use (Web / Desktop / TUI) and its DSH core version — for the Desktop app, the bundled core, never the standalone CLI's version.
-Then install from the official npm package per the version mapping (0.2.1-rc.2 -> 0.7.9, 0.2.1-rc.1 -> 0.7.7, 0.2.0-rc.2 -> 0.7.6, rc.1 -> 0.7.0, 0.1.5-0.1.7 -> 0.6.5), preferring a locally supported non-market channel; on some Desktop distributions (the official Electron app in particular) the profile is app-managed and rules vary by distribution — check mine first, then explore its compliant install route, but never bypass its validation.
+Then install from the official npm package per the version mapping (0.2.2-rc.3 -> 0.7.12 (local workspace build only), 0.2.1-rc.2 -> 0.7.9, 0.2.1-rc.1 -> 0.7.7, 0.2.0-rc.2 -> 0.7.6, rc.1 -> 0.7.0, 0.1.5-0.1.7 -> 0.6.5), preferring a locally supported non-market channel; on some Desktop distributions (the official Electron app in particular) the profile is app-managed and rules vary by distribution — check mine first, then explore its compliant install route, but never bypass its validation.
 Ask for my consent and make backups before changing any local files or configuration.
 After installing, verify the WorkBuddy group appears in the model picker and walk me through one short conversation.
 If the Desktop install still fails generation validation (e.g. the @types/retry false positive), report it honestly, reference upstream dataelement/dsh-desktop#688, and suggest switching to the standalone Web / TUI — do not modify dependency packages or bypass the check.
@@ -33,6 +33,7 @@ Core-to-plugin quick reference (full table in "Compatibility and release history
 
 | DSH core | Recommended plugin |
 |---|---|
+| 0.2.2-rc.3 | 0.7.12 (local workspace build, not on npm) |
 | 0.2.1-rc.2 | 0.7.9 (npm latest) |
 | 0.2.1-rc.1 | 0.7.7 |
 | 0.2.0-rc.2 | 0.7.6 |
@@ -157,6 +158,7 @@ The plugin version must match the DSH core — a mismatched combination fails to
 
 | DSH core | Recommended plugin | Notes |
 |---|---|---|
+| `0.2.2-rc.3` | `0.7.12` | Local workspace build; peers and `engines.dsh` both target `0.2.2-rc.3`, and the pi-ai route gains the new request image-count fields. |
 | `0.2.1-rc.2` | `0.7.9` | Targets this core only; `0.2.0-rc.2` and `0.2.1-rc.2` differ. Check the core bundled in your Desktop app. |
 | `0.2.1-rc.1` | `0.7.7` | The core moved to `@earendil-works/pi-ai` 1.3.0, so the plugin bundles 1.3.0 too — a leftover 0.87.1 overrides entry must be removed (see the pi-ai note below). |
 | `0.2.0-rc.2` | `0.7.6` | Previous core line; fixes enterprise catalog gaps and international chat requests blocked by the upstream channel check. Avoid 0.7.2 with its registry regression. |
@@ -167,6 +169,8 @@ The plugin version must match the DSH core — a mismatched combination fails to
 
 Release history (full records at [releases](https://github.com/corrinehu/dsh-workbuddy-connect/releases)):
 
+- **0.7.12 (local, unreleased)**: restores CN chats: on 2026-11-14 the gateway's content fingerprint moved from the two original sentences to DSH 0.2.2's `@`-path paragraph; bisecting it showed that rewriting only that paragraph's opening sentence clears the block (the two older rewrites stay), and the whole 6.3 KB system prompt plus 33 tool definitions passes again in a live check. The international path is unchanged.
+- **0.7.11 (local, unreleased)**: adapts to DSH 0.2.2-rc.3: peers and `engines.dsh` narrow to 0.2.2-rc.3; the pi-ai route supplies the new `maxRequestImages` / `imageOffloadCountQuantum` fields (requests retaining more images than the bound offload the oldest ones); Windows candidate dedup uses `realpathSync.native` so junction aliases of one app fold correctly.
 - **0.7.10 (local, unreleased)**: restores CN chats: identifies the gateway's prompt-fingerprint filter added on 2026-10-20 and rewrites the two known fingerprint sentences for CN requests only (semantically equivalent), with one zero-width-space fallback retry; the international path is unchanged.
 - **0.7.9**: restores the international edition's maximum-context switch on DSH 0.2.1-rc.2, including delayed initialization and persistent settings (PR [#172](https://github.com/corrinehu/dsh-workbuddy-connect/pull/172), by @1Dreamer666); avoids fetch-blocked local ports that could cause international-edition 502 errors (PR [#164](https://github.com/corrinehu/dsh-workbuddy-connect/pull/164), by @Xiong-Ziyi); combines credit packages with the same name to reduce repeated entries.
 - **0.7.8**: adapts to DSH 0.2.1-rc.2; bundles the official atomic-write helper instead of relying on host module exposure; refreshes the China catalog snapshot and distinguishes Hy3 / Hy3-X; improves probe result labels and fixes the credit-refresh placement and tooltip. Thanks to @chenpiyanghappy for PR [#156](https://github.com/corrinehu/dsh-workbuddy-connect/pull/156).

@@ -66,6 +66,13 @@ describe('neutralizeCnPromptText', () => {
     expect(neutralizeCnPromptText(once)).toBe(once)
   })
 
+  it('rewrites the 0.2.2 @-path opening sentence', () => {
+    const source = 'Tokens prefixed with @ are paths the user explicitly referenced. Relative paths resolve from the workspace root.'
+    expect(neutralizeCnPromptText(source)).toBe(
+      'An @ prefix marks a path the user explicitly referenced. Relative paths resolve from the workspace root.',
+    )
+  })
+
   it('leaves unrelated text untouched', () => {
     const text = 'You are a coding agent powered by the deepseek-flash model.'
     expect(neutralizeCnPromptText(text)).toBe(text)

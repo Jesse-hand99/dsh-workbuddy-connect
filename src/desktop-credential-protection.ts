@@ -1730,7 +1730,10 @@ function inspectWindowsElectronCandidate(
 
   let identity: string
   try {
-    identity = realpathSync(electronPath)
+    // `.native` resolves a Windows junction; the JS realpath answers EINVAL
+    // from readlink for one and keeps the alias spelling, so two uninstall
+    // rows naming the same app through a junction would look like two apps.
+    identity = realpathSync.native(electronPath)
   } catch (error: unknown) {
     return isENOENT(error) ? undefined : 'unresolved'
   }

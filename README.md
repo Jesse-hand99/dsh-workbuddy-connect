@@ -13,7 +13,7 @@
 ```text
 请帮我安装并验证 DSH（DeepSeek Harness）插件 dsh-workbuddy-connect（项目地址：https://github.com/corrinehu/dsh-workbuddy-connect）：
 先阅读项目 README，确认我实际使用的界面（Web / Desktop / TUI）与 DSH 内核版本，桌面版以 App 内置核心为准，不要用独立 CLI 的版本代替；
-再按版本对应关系从 npm 正式包安装（0.2.1-rc.2→0.7.9、0.2.1-rc.1→0.7.7、0.2.0-rc.2→0.7.6、rc.1→0.7.0、0.1.5–0.1.7→0.6.5），优先走本机受支持的非插件市场渠道；部分 Desktop 发行版（尤其官方 Electron 版）的 profile 由 App 管理，各发行版规则未必相同，先确认我所用的发行版，再探查其合规的安装方式，但不得绕过其校验；
+再按版本对应关系从 npm 正式包安装（0.2.2-rc.3→0.7.12（仅本工作区本地构建）、0.2.1-rc.2→0.7.9、0.2.1-rc.1→0.7.7、0.2.0-rc.2→0.7.6、rc.1→0.7.0、0.1.5–0.1.7→0.6.5），优先走本机受支持的非插件市场渠道；部分 Desktop 发行版（尤其官方 Electron 版）的 profile 由 App 管理，各发行版规则未必相同，先确认我所用的发行版，再探查其合规的安装方式，但不得绕过其校验；
 任何本地文件或配置改动，先征得我同意并做好备份；
 装完后验证模型选择器里出现 WorkBuddy 分组，并陪我完成一次简短对话；
 若 Desktop 安装仍因 generation 校验失败（如 @types/retry 误报），请如实报告、参照上游 dataelement/dsh-desktop#688，并建议我改用独立的 Web / TUI，不要修改依赖包或绕过校验。
@@ -23,6 +23,7 @@
 
 | DSH 内核 | 推荐插件版 |
 |---|---|
+| 0.2.2-rc.3 | 0.7.12（本工作区本地构建，未发布 npm） |
 | 0.2.1-rc.2 | 0.7.9（npm latest） |
 | 0.2.1-rc.1 | 0.7.7 |
 | 0.2.0-rc.2 | 0.7.6 |
@@ -148,6 +149,7 @@ llm-workbuddy:
 
 | DSH 内核 | 推荐插件版 | 注意事项 |
 |---|---|---|
+| `0.2.2-rc.3` | `0.7.12` | 本工作区本地构建；peer 与 `engines.dsh` 均指向 `0.2.2-rc.3`，并适配 pi-ai 路由新增的图片数量上限字段。 |
 | `0.2.1-rc.2` | `0.7.9` | 仅适配这一内核；`0.2.0-rc.2` 与 `0.2.1-rc.2` 不同，请核对 App 内置版本。 |
 | `0.2.1-rc.1` | `0.7.7` | 内核升级到 `@earendil-works/pi-ai` 1.3.0，插件同步自带 1.3.0，历史遗留的 0.87.1 overrides 必须移除（见下方 pi-ai 说明）。 |
 | `0.2.0-rc.2` | `0.7.6` | 上一代内核线；修复企业账号模型目录缺项与国际版对话被渠道校验拦截，勿停留在有注册表回归的 0.7.2。 |
@@ -158,6 +160,8 @@ llm-workbuddy:
 
 历次更新（完整记录见 [releases](https://github.com/corrinehu/dsh-workbuddy-connect/releases)）：
 
+- **0.7.12（本地，未发布）**：国内版恢复对话：2026-11-14 起网关的内容指纹从旧的两句话移到 DSH 0.2.2 系统提示词的 `@` 路径段落；二分定位后确认只需改写该段首句（前两句旧指纹保留），实测整段 6.3 KB 系统提示词与 33 个工具定义可再次通过。国际版路径不受影响。
+- **0.7.11（本地，未发布）**：适配 DSH 0.2.2-rc.3：peer 依赖与 `engines.dsh` 收窄到 0.2.2-rc.3；为 pi-ai 路由补齐 `maxRequestImages` / `imageOffloadCountQuantum`（请求保留图片超过上限时按 quantum 卸载最老图片）；Windows 候选去重改用 `realpathSync.native`，让指向同一 App 的 junction 别名正确折叠。
 - **0.7.10（本地，未发布）**：国内版恢复对话：识别出 2026-10-20 起国内网关对 DSH 启动提示词的内容指纹拦截，插件改为仅对国内版请求做语义等价的提示词净化（两处已知指纹句），并保留一次零宽空格兜底重试；国际版路径不变。
 - **0.7.9**：恢复 DSH 0.2.1-rc.2 上国际版最大上下文窗口开关，修复延迟初始化及设置持久化（PR [#172](https://github.com/corrinehu/dsh-workbuddy-connect/pull/172)，by @1Dreamer666）；避免本地服务绑定到 fetch 禁用端口导致国际版 502（PR [#164](https://github.com/corrinehu/dsh-workbuddy-connect/pull/164)，by @Xiong-Ziyi）；同名积分包合并展示，减少重复条目。
 - **0.7.8**：适配 DSH 0.2.1-rc.2；将官方原子写入工具打包到插件，避免依赖宿主暴露该模块；更新国内模型目录快照，区分 Hy3 / Hy3-X；优化推理检测结果展示，调整积分刷新按钮位置并修正悬停提示。感谢 @chenpiyanghappy 的 PR [#156](https://github.com/corrinehu/dsh-workbuddy-connect/pull/156)。

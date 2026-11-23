@@ -1162,7 +1162,13 @@ describe('WorkBuddy Host settings integration', () => {
         saved = next
         writes += 1
         // Model the editor applying resolved Config after a successful save.
-        Object.assign(pluginFiber!.config, resolveConfig({ name: 'fixture', callback() {}, Config: WorkBuddy.Config } as never, saved))
+        // A 0.2.2 SettingsForms projects `fiber.effectiveConfig`, while 0.2.1
+        // read `fiber.config`; the real loader refreshes both on reload, so the
+        // fixture mirrors that into whichever object this fiber exposes.
+        const resolved = resolveConfig({ name: 'fixture', callback() {}, Config: WorkBuddy.Config } as never, saved)
+        Object.assign(pluginFiber!.config, resolved)
+        const effective = (pluginFiber as unknown as { effectiveConfig?: Record<string, unknown> }).effectiveConfig
+        if (effective !== undefined) Object.assign(effective, resolved)
       },
     }
 

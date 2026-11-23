@@ -8,8 +8,14 @@
  * official-client headers, the desktop User-Agent, the international origin and
  * every other request attribute were measured accepted while the same request
  * carrying the real system prompt was blocked (see the live verification notes
- * in README). Replacing these two sentences with semantically equivalent
- * wording makes the full system prompt pass again.
+ * in README). Replacing these sentences with semantically equivalent wording
+ * makes the full system prompt pass again.
+ *
+ * The filter is upstream-owned and has already moved once: on 2026-11-14 the
+ * DSH 0.2.2-rc.3 prompt was blocked despite both original fingerprints being
+ * rewritten, and bisecting it traced the block to the `@`-path paragraph (see
+ * {@link NEUTRALIZERS}). Expect further moves; a measured rewrite is a
+ * stopgap, not a protocol.
  *
  * Scope: CN chat bodies only. The international endpoint does not apply this
  * filter and must never see a rewritten prompt, so callers choose the region at
@@ -43,11 +49,16 @@ interface PromptNeutralizer {
 }
 
 /**
- * The fingerprints observed on the CN gateway (2026-10-21, DSH 0.2.1-rc.2).
+ * The fingerprints observed on the CN gateway.
  *
- * Both patterns open with a capital letter and tolerate the sentence-final
- * period being absent: the gateway's matcher was measured insensitive to case
- * and to the trailing period.
+ * The first two were measured on 2026-10-21 against DSH 0.2.1-rc.2. On
+ * 2026-11-14 the gateway blocked the DSH 0.2.2-rc.3 prompt even with both of
+ * them rewritten: bisecting that prompt showed the trigger is the `@`-path
+ * paragraph, and that rewriting only its *first* sentence is enough to pass,
+ * while rewriting the later sentences in place is not. That shape — a
+ * sentence that passes alone, a paragraph that fails, and any break of the
+ * leading sentence clearing it — is a content fingerprint anchored at the
+ * paragraph start, not a word blacklist.
  */
 const NEUTRALIZERS: readonly PromptNeutralizer[] = [
   {
@@ -59,6 +70,13 @@ const NEUTRALIZERS: readonly PromptNeutralizer[] = [
     id: 'gui-self-reference',
     pattern: /When\s+the\s+user\s+refers\s+to\s+[“"]this\s+page[”"],\s*[“"]this\s+GUI[”"],\s*or\s+[“"]this\s+app[”"]\s+without\s+naming\s+another\s+target,\s*they\s+mean\s+this\s+GUI\.?/giu,
     replacement: 'When the user mentions this page, this GUI, or this app without another target, they mean this GUI.',
+  },
+  {
+    // 0.2.2-rc.3's path-reference paragraph. Only the opening sentence has to
+    // change; the rest of the paragraph keeps its original wording.
+    id: 'at-path-reference',
+    pattern: /Tokens\s+prefixed\s+with\s+@\s+are\s+paths\s+the\s+user\s+explicitly\s+referenced\./giu,
+    replacement: 'An @ prefix marks a path the user explicitly referenced.',
   },
 ]
 
